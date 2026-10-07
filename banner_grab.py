@@ -1,26 +1,49 @@
 import requests
+from colorama import Fore, Style
 
 SECURITY_HEADERS = [
-    'Content-Security-Policy',
-    'X-Frame-Options',
-    'Strict-Transport-Security',
-    'X-Content-Type-Options',
+    "Content-Security-Policy",
+    "X-Frame-Options",
+    "Strict-Transport-Security",
+    "X-Content-Type-Options",
+    "Referrer-Policy",
 ]
 
-def grab_http_headers(target):
-    print(f'\n[*] HTTP Header Analysis — {target}\n')
+INFO_HEADERS = ["Server", "X-Powered-By", "Via", "X-Generator"]
+
+def grab_http_headers(target, log_lines=None):
+    if log_lines is None:
+        log_lines = []
+
+    print(Fore.CYAN + f"\n[*] HTTP Header Analysis" + Style.RESET_ALL)
+    print(f"    Target: {target}\n")
+
     try:
-        resp = requests.get(f'http://{target}', timeout=5)
-        print(f'[+] Status: {resp.status_code}\n')
-        info_headers = ['Server', 'X-Powered-By', 'Via']
-        for h in info_headers:
+        resp = requests.get(f"http://{target}", timeout=5)
+        msg = f"[+] Status: {resp.status_code}"
+        print(Fore.GREEN + msg)
+        log_lines.append(msg)
+        print()
+
+        print(Fore.YELLOW + "    Version disclosure:" + Style.RESET_ALL)
+        for h in INFO_HEADERS:
             if h in resp.headers:
-                print(f'[!] {h}: {resp.headers[h]}  <- version exposed')
-        print('')
+                msg = f"[!] {h}: {resp.headers[h]}"
+                print(Fore.YELLOW + msg)
+                log_lines.append(msg)
+
+        print()
+        print(Fore.YELLOW + "    Security headers:" + Style.RESET_ALL)
         for h in SECURITY_HEADERS:
             if h in resp.headers:
-                print(f'[+] PRESENT  {h}')
+                msg = f"[+] PRESENT  {h}"
+                print(Fore.GREEN + msg)
             else:
-                print(f'[-] MISSING  {h}  <- report as finding')
+                msg = f"[-] MISSING  {h}"
+                print(Fore.RED + msg)
+            log_lines.append(msg)
+
     except Exception as e:
-        print(f'[-] Error: {e}')
+        msg = f"[-] Could not connect: {e}"
+        print(Fore.RED + msg)
+        log_lines.append(msg)

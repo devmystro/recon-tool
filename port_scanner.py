@@ -1,5 +1,13 @@
 import socket
 import concurrent.futures
+from colorama import Fore, Style
+
+COMMON_PORTS = {
+    21: "ftp", 22: "ssh", 23: "telnet", 25: "smtp",
+    53: "dns", 80: "http", 110: "pop3", 143: "imap",
+    443: "https", 445: "smb", 3306: "mysql",
+    3389: "rdp", 5900: "vnc", 8080: "http-alt", 8443: "https-alt"
+}
 
 def scan_port(host, port):
     try:
@@ -10,20 +18,43 @@ def scan_port(host, port):
     except Exception:
         return port, False
 
-def run_port_scan(target, start_port=1, end_port=1024):
-    print(f'\n[*] Scanning {target} — ports {start_port} to {end_port}')
+def run_port_scan(target, start_port=1, end_port=1024, log_lines=None):
+    if log_lines is None:
+        log_lines = []
+
+    print(Fore.CYAN + f"[*] Port Scanner" + Style.RESET_ALL)
+    print(f"    Scanning ports {start_port} to {end_port} on {target}\n")
+
     try:
         ip = socket.gethostbyname(target)
-        print(f'[*] Resolved to {ip}\n')
+        msg = f"    Resolved {target} -> {ip}"
+        print(Fore.WHITE + msg)
+        log_lines.append(msg)
     except socket.gaierror:
-        print(f'[-] Could not resolve {target}')
+        msg = f"[-] Could not resolve {target}"
+        print(Fore.RED + msg)
+        log_lines.append(msg)
         return []
+
+    print()
     open_ports = []
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=100) as ex:
-        results = list(ex.map(lambda p: scan_port(ip, p), range(start_port, end_port + 1)))
+        results = list(ex.map(
+            lambda p: scan_port(ip, p),
+            range(start_port, end_port + 1)
+        ))
+
     for port, is_open in results:
+        service = COMMON_PORTS.get(port, "unknown")
         if is_open:
             open_ports.append(port)
-            print(f'[+] Port {port:<6} OPEN')
-    print(f'\n[*] Done — {len(open_ports)} open port(s) found')
+            msg = f"[+] Port {port:<6} OPEN    {service}"
+            print(Fore.GREEN + msg)
+            log_lines.append(msg)
+
+    summary = f"\n[*] {len(open_ports)} open port(s) found on {target}"
+    print(Fore.CYAN + summary + Style.RESET_ALL)
+    log_lines.append(summary)
+
     return open_ports
